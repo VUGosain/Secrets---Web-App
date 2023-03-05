@@ -3,7 +3,8 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const ejs = require('ejs');
 const mongoose = require('mongoose');
-const md5 = require('md5');
+const bcrypt = require('bcrypt');
+const saltRounds = 10;
 
 const app = express();
 
@@ -35,33 +36,48 @@ app.get('/register', function (req, res) {
 
 app.post('/register', function (req, res) {
 
-    const newUser = new User({
-        name: req.body.username,
-        password: md5(req.body.password)
+
+
+    bcrypt.hash(req.body.password, saltRounds, function (err, hash) {
+        if (err)
+            console.log(err);
+        else {
+            const newUser = new User({
+                name: req.body.username,
+                password: hash
+            });
+
+            newUser.save().then(function () {
+                res.render("secrets");
+            }).catch(function (err) {
+                console.log(err);
+            })
+        }
     });
-
-    newUser.save().then(function () {
-        res.render("secrets");
-    }).catch(function (err) {
-        console.log(err);
-    })
-
 });
 
 app.post('/login', function (req, res) {
 
     const name = req.body.username;
-    const password = md5(req.body.password);
+    const password = req.body.password;
 
     User.findOne({ name: name }).then(function (person) {
+
         if (!person) {
             res.send("User not found");
         }
-        else if(person.password === password) {
-            res.render('secrets');
-        }
-        else{
-            res.send("Incorrect password !!");
+        else {
+            bcrypt.compare(req.body.password, person.password, function (err, result) {
+                if(err)
+                    console.log(err);
+                else
+                {
+                    if(result)
+                        res.render('secrets');
+                    else
+                        res.send("Incorrect password !!");
+                }
+            });
         }
     }).catch(function (err) {
         console.log(err);
