@@ -31,7 +31,8 @@ mongoose.connect('mongodb://127.0.0.1:27017/userDB');
 const userSchema = new mongoose.Schema({
     // name: String,
     password: String,
-    googleId: String
+    googleId: String,
+    secret: String
 });
 
 userSchema.plugin(findOrCreate);
@@ -88,12 +89,11 @@ app.get('/register', function (req, res) {
 });
 
 app.get("/secrets", function (req, res) {
-    if (req.isAuthenticated()) {
-        res.render("secrets", {});
-    }
-    else {
-        res.redirect('/login');
-    }
+    User.find({ secret: { $ne: null } }).then(function (foundUsers) {
+        res.render('secrets', { usersWithSecrets: foundUsers });
+    }).catch(function (err) {
+        console.log(err);
+    });
 });
 
 app.post('/register', function (req, res) {
@@ -148,6 +148,20 @@ app.get('/submit', function (req, res) {
         res.redirect('/login');
     }
 });
+
+app.post('/submit', function (req, res) {
+    const secret = req.body.secret;
+    User.findOne({ username: req.body.username }).then(function (foundUser) {
+        foundUser.secret = secret;
+        foundUser.save().then(function () {
+            res.redirect('/secrets');
+        }).catch(function (err) {
+            console.log(err);
+        });
+    }).catch(function (err) {
+        console.log(err);
+    });
+})
 
 app.listen(3000, function () {
     console.log("Server active on port 3000");
